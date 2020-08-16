@@ -25,6 +25,7 @@ class DBUtil():
         cur = conn.cursor()
         cur.execute(sql)
         conn.commit()
+        return
 
     @staticmethod
     def save_as_db(executesql:str, pdatas:list):
@@ -32,27 +33,38 @@ class DBUtil():
         conn = DBUtil.getConnect()
         cur = conn.cursor()
         datalist = []
+        count = 0
         for pdata in pdatas:
             while pdata.next():
                 datalist.append(tuple(pdata.get_row_data()))
-        ex.execute_values(cur, executesql, datalist)
+                count += 1
+                if count % 999 == 0:
+                    ex.execute_values(cur, executesql, datalist)
+                    conn.commit()
+                    datalist = []
+        if len(datalist) > 0:
+            ex.execute_values(cur, executesql, datalist)
         conn.commit()
         return None
 
     @staticmethod
-    def io_save_db(table:str, pdatas:list):
+    def io_save_db(schema:str, table:str, pdatas:list):
         f = StringIO()
         f.seek(0)
         size = 0
+        table = schema+"."+table
         if len(pdatas) <= 0:
-            raise "缺少数据内容"
+            raise BaseException("缺少数据内容")
         cols = pdatas[0].fields
+        print("insert ",table," with ", ",".join(cols))
         for pdata in pdatas:
-            size += len(pdata)
+            size += len(pdata.get_data())
             while pdata.next():
                 f.write('\t'.join(pdata.get_row_data())+'\n')
-        conn = DBUtil.getConnect()
-        cur = conn.cursor()
-        cur.copy_from(f, table, columns=cols,sep='\t', null='\\N', size=size)
-        conn.commit()
+        if size > 0:
+            conn = DBUtil.getConnect()
+            cur = conn.cursor()
+            cur.copy_from(f, table, columns=cols,sep='\t', null='\\N', size=size)
+            conn.commit()
+        f.close()
         return

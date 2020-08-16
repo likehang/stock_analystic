@@ -6,6 +6,22 @@ import config
 from functools import wraps
 class Stock():
     @staticmethod
+    def get_all_functions():
+        funlist = []
+        funlist.extend(Stock.get_divided_list())
+        funlist.extend(Stock.get_history_list())
+        funlist.extend(Stock.get_sector_list())
+        funlist.extend(Stock.get_evaluation_list())
+        funlist.extend(Stock.get_corporate_list())
+        funlist.extend(Stock.get_metadata_list())
+        funlist.extend(Stock.get_macroscopic_list())
+        return funlist
+
+    @staticmethod
+    def get_divided_list():
+        return ["dividend_data"]
+
+    @staticmethod
     def get_history_list():
         return ["history_k_data"]
 
@@ -27,7 +43,7 @@ class Stock():
 
     @staticmethod
     def get_metadata_list():
-        return ["all_stock","trade_dates","stock_basic"]
+        return ["all_stock","trade_dates","stock_basic","adjust_factor"]
 
     @staticmethod
     def get_macroscopic_list():
@@ -41,10 +57,13 @@ class Stock():
         fun = self.__getattribute__(flag_name)
         return fun(self, *args)
 
+    def get_fun(self, key):
+        return self.__getattribute__(key)
+
     # def bs_ready(self, func):
     #     @wraps(func)
     #     def wrapper(self, *args, **kwargs):
-    #         self.getStockInstance()
+    #         bs.login()
     #         rs = func(self, *args, **kwargs)
     #         self._test_rs(rs)
     #         return rs
@@ -54,33 +73,35 @@ class Stock():
         self._login = bs.login()
         self._lasttime = datetime.datetime.today()
 
-    def __del__(self):
-        bs.logout()
+    # def __del__(self):
+    #     bs.logout()
 
     def _test_rs(self, rs):
-        if rs.error_code == '0':
+        if rs.__getattribute__("error_code") is not None and rs.error_code == '0':
             self._lasttime = datetime.datetime.today()
         else:
-            raise BaseException("rs is error")
+            # raise BaseException("rs is error:",rs.error_code,"-" ,rs.error_msg)
+            return
 
     def getStockInstance(self):
         nowtimestamp = datetime.datetime.today()
-        timedelta = nowtimestamp - self._lasttime
-        timedelta = timedelta.total_seconds()/ 60.0
-        if self._login.error_code == '0' and timedelta <= 1:
+        if self._login is not None and self._login.error_code == '0' :
+            timedelta = nowtimestamp - self._lasttime
+            timedelta = timedelta.total_seconds()/ 60.0
             self._lasttime = nowtimestamp
-            return True
-        else:
-            flag = False
-            num = 0
-            while( not flag):
-                num += 1
-                self._login = bs.login()
-                if self._login.error_code == '0':
-                    return True
-                time.sleep(config.SLEEP_TIME)
-                if( num >= 5):
-                    raise BaseException("login error after 5 times")
+            if timedelta <= 5:
+                return True
+        flag = False
+        num = 0
+        while( not flag):
+            num += 1
+            self._login = self.getStockInstance()
+            if self._login.error_code == '0':
+                self._lasttime = datetime.datetime.today()
+                return True
+            time.sleep(config.SLEEP_TIME)
+            if( num >= 5):
+                raise BaseException("login error after 5 times")
     """
     除权除息信息：query_dividend_data()
     """
@@ -88,6 +109,7 @@ class Stock():
         self.getStockInstance()
         rs = bs.query_dividend_data(code, year, yearType)
         self._test_rs(rs)
+
         return rs
     """
     获取历史A股K线数据：query_history_k_data_plus()
@@ -123,7 +145,7 @@ class Stock():
     """
     上证50成分股：query_sz50_stocks()
     """
-    def sz50_stocks(self, *args, **kwargs):
+    def sz50_stocks(self):
         self.getStockInstance()
         rs = bs.query_sz50_stocks()
         self._test_rs(rs)
