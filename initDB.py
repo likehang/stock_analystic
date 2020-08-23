@@ -45,7 +45,7 @@ def init_schedule():
 def init_stock_data():
     now_date = datetime.datetime.now().strftime("%Y-%m-%d")
     st = Stock()
-    ss = Stock.get_macroscopic_list()
+    ss = Stock.get_evaluation_list()
     # ss = st.get_all_functions()
     codes = []
     conn = DBUtil.getConnect()
@@ -92,7 +92,7 @@ def init_stock_data():
                     kwargs.append({"code":code, "start_date":"2005-01-01", "end_date":now_date})
         elif key in Stock.get_evaluation_list():
             for code in codes:
-                for year in range(2000,int(now_date[0:4])):
+                for year in range(2000,2001):#int(now_date[0:4])):
                     for quarter in [1, 2, 3, 4]:
                         kwargs.append({"code":code, "year":year, "quarter":quarter})
         elif key in Stock.get_corporate_list():
@@ -104,11 +104,11 @@ def init_stock_data():
             else:
                 kwargs.append({"start_date":"2005-01-01", "end_date":now_date})
         print("task size:",len(kwargs))
-        results = run_task_process(fun=fun, fun_kwargs=kwargs, processes=5, prefun=Stock)
+        results = run_task_process(fun=fun, fun_kwargs=kwargs, processes=5, prefun=Stock.login)
         print(key," start insert", (datetime.datetime.now() - start).seconds)
         start = datetime.datetime.now()
         DBUtil.save_as_db(get_stock_insert_sql(key), results)
-        # DBUtil.io_save_db("data", key, results)
+        # save_as_csv("./"+key+".csv", results)
         print(key," done", (datetime.datetime.now() - start).seconds)
     print("Done ")
 

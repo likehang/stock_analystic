@@ -5,6 +5,14 @@ import time
 import config
 from functools import wraps
 class Stock():
+
+    @staticmethod
+    def login():
+        bs.login()
+    @staticmethod
+    def logout():
+        bs.logout()
+
     @staticmethod
     def get_all_functions():
         funlist = []
@@ -33,13 +41,13 @@ class Stock():
     def get_evaluation_list():
         return [
             "quarter_profit_data","quarter_growth_data"
-            ,"query_balance_data","quarter_dupont_data"
+            ,"quarter_balance_data","quarter_dupont_data"
             ,"quarter_cash_flow_data","quarter_operation_data"
         ]
 
     @staticmethod
     def get_corporate_list():
-        return ["quarter_performance_express_report","quarter_forcast_report"]
+        return ["quarter_performance_express_report","quarter_forecast_report"]
 
     @staticmethod
     def get_metadata_list():
@@ -274,7 +282,6 @@ class Stock():
     存款准备金率：query_required_reserve_ratio_data()
     """
     def normal_required_reserve_ratio_data(self, start_date, end_date, yearType):
-        assert yearType in [0, 1]
         self.getStockInstance()
         rs = bs.query_required_reserve_ratio_data(start_date, end_date)
         self._test_rs(rs)
@@ -284,7 +291,7 @@ class Stock():
     """
     def normal_money_supply_data_month(self, start_date, end_date):
         self.getStockInstance()
-        rs = bs.query_money_supply_data_month(start_date, end_date)
+        rs = bs.query_money_supply_data_month(start_date[0,7], end_date[0,7])
         self._test_rs(rs)
         return rs
     """
@@ -292,7 +299,7 @@ class Stock():
     """
     def normal_money_supply_data_year(self, start_date, end_date):
         self.getStockInstance()
-        rs = bs.query_money_supply_data_year(start_date, end_date)
+        rs = bs.query_money_supply_data_year(start_date[0,4], end_date[0,4])
         self._test_rs(rs)
         return rs
     """

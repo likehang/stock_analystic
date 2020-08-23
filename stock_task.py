@@ -4,23 +4,30 @@ import multiprocessing
 import gevent
 from gevent.pool import Pool as gPool
 import os
+import time
 
 
 broker = config.REDIS_URL+"5"
 backend = config.REDIS_URL+"6"
-# celery -A stock_task worker --loglevel=info --logfile=./log_celery_stock_task.log
+# celery -A stock_task worker --loglevel=info --logfile=./logs/celery_stock_task.log
 app = Celery('stock_task', broker=broker, backend=backend)
-app.debug = True
 # app.worker_main(argv=[''
-#     '--loglevel=info',
-#     '--logfile=./log_celery_stock_task.log'
-# ])
+#      '--loglevel=info',
+#      '--logfile=./logs/celery_stock_task.log'
+#  ])
 
-# gevent.config.set("GEVENT_SUPPORT",True)
+def set_part(size:int):
+    bit = len(str(size))
+    if bit > 3:
+        return 10**(bit - 3)
+    else:
+        return 1
 
 def compelete_per(s:int, c:int):
-    print("task running :", str(c/s*100),"%")
+    print("task running : %.2f %%" % (c/s*100))
 
+def time_sleep(second = 1):
+    time.sleep(second)
 
 @app.task
 def test():
@@ -28,17 +35,21 @@ def test():
 
 @app.task
 def run_task_process(fun:object, fun_kwargs:list, processes:int=2, prefun:object=None, postfun:object=None):
+    size = len(fun_kwargs)
+    price = set_part(size)
     pool = multiprocessing.Pool(processes=processes)
     if prefun is not None:
         for i in range(0, processes):
-            pool.apply_async(func=prefun)
+            pool.apply(func=prefun)
     fun_threads = []
-    for kwargs in fun_kwargs:
+    for i, kwargs in enumerate(fun_kwargs):
         res = pool.apply_async(func=fun, kwds=kwargs)
+        if i % price == 0:
+            pool.apply_async(compelete_per, kwds={"s":size, "c":i})
         fun_threads.append(res)
     if postfun is not None:
         for i in range(0, processes):
-            pool.apply_async(func=postfun)
+            pool.apply(func=postfun)
     pool.close()
     pool.join()
     results = []
@@ -49,17 +60,22 @@ def run_task_process(fun:object, fun_kwargs:list, processes:int=2, prefun:object
 
 @app.task
 def run_task_gevent(fun:object, fun_kwargs:list, processes:int=2, prefun:object=None, postfun:object=None):
+    size = len(fun_kwargs)
+    price = set_part(size)
     pool = gPool(processes)
     if prefun is not None:
-        pool.apply_async(prefun)
+        pool.apply(prefun)
     gevent_threads = []
-    for kwargs in fun_kwargs:
-        gevent_threads.append(pool.apply_async(fun, kwds = kwargs))
-    gevent.joinall(gevent_threads)
+    for i, kwargs in enumerate(fun_kwargs):
+        res = pool.apply_async(fun, kwds = kwargs)
+        gevent_threads.append(res)
+        if i % price == 0:
+            pool.apply_async(compelete_per, kwds={"s":size, "c":i})
+    pool.join()
     results = []
     for thread in gevent_threads:
         if thread.successful():
             results.append(thread.value)
     if postfun is not None:
-        pool.apply_async(postfun)
+        pool.apply(postfun)
     return results
