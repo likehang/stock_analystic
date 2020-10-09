@@ -2,6 +2,7 @@ import psycopg2 as pg
 import config as conf
 from io import StringIO
 from psycopg2 import extras as ex
+import re
 
 conn = None
 class DBUtil():
@@ -20,7 +21,7 @@ class DBUtil():
         return conn
 
     @staticmethod
-    def executesql(sql:str):
+    def execute_sql(sql:str):
         conn = DBUtil.getConnect()
         cur = conn.cursor()
         cur.execute(sql)
@@ -30,21 +31,17 @@ class DBUtil():
     @staticmethod
     def save_as_db(executesql:str, pdatas:list):
         # cols = pdata.fields
-        conn = DBUtil.getConnect()
-        cur = conn.cursor()
         datalist = []
-        count = 0
+        count = 1
         for pdata in pdatas:
             while pdata.next():
                 datalist.append(tuple(pdata.get_row_data()))
                 count += 1
-                if count % 999 == 0:
-                    ex.execute_values(cur, executesql, datalist)
-                    conn.commit()
+                if count % 3000 == 0:
+                    DBUtil._insert_beauty(executesql, datalist)
                     datalist = []
         if len(datalist) > 0:
-            ex.execute_values(cur, executesql, datalist)
-        conn.commit()
+            DBUtil._insert_beauty(executesql, datalist)
         return None
 
     @staticmethod
@@ -68,3 +65,33 @@ class DBUtil():
             conn.commit()
         f.close()
         return
+
+    @staticmethod
+    def _insert_beauty(executesql:str, datalist:list):
+        conn = DBUtil.getConnect()
+        cur = conn.cursor()
+        try:
+            ex.execute_values(cur, executesql, datalist)
+        except Exception as e:
+            conn.rollback()
+            print("single insert")
+            for data in datalist:
+                value_data = DBUtil.__beauty_sql(data)
+                sql = executesql % "("+value_data+")"
+                try:
+                    cur.execute(sql)
+                except Exception as err:
+                    print("execute error :", sql, err)
+                    conn.rollback()
+        conn.commit()
+
+    @staticmethod
+    def __beauty_sql(data:tuple):
+        pattern = re.compile(r'^[-+]{0,1}\d*(\.\d*)$')
+        value_part = []
+        for item in data:
+            if pattern.match(str(item)):
+                value_part.append(str(item))
+            else:
+                value_part.append("'"+item+"'")
+        return ",".join(value_part)

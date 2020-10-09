@@ -23,7 +23,7 @@ def set_part(size:int):
     else:
         return 1
 
-def compelete_per(s:int, c:int):
+def complete_per(s:int, c:int):
     print("task running : %.2f %%" % (c/s*100))
 
 def time_sleep(second = 1):
@@ -45,7 +45,7 @@ def run_task_process(fun:object, fun_kwargs:list, processes:int=2, prefun:object
     for i, kwargs in enumerate(fun_kwargs):
         res = pool.apply_async(func=fun, kwds=kwargs)
         if i % price == 0:
-            pool.apply_async(compelete_per, kwds={"s":size, "c":i})
+            pool.apply_async(complete_per, kwds={"s":size, "c":i})
         fun_threads.append(res)
     if postfun is not None:
         for i in range(0, processes):
@@ -63,6 +63,7 @@ def run_task_gevent(fun:object, fun_kwargs:list, processes:int=2, prefun:object=
     size = len(fun_kwargs)
     price = set_part(size)
     pool = gPool(processes)
+    errorcount = 0
     if prefun is not None:
         pool.apply(prefun)
     gevent_threads = []
@@ -70,12 +71,33 @@ def run_task_gevent(fun:object, fun_kwargs:list, processes:int=2, prefun:object=
         res = pool.apply_async(fun, kwds = kwargs)
         gevent_threads.append(res)
         if i % price == 0:
-            pool.apply_async(compelete_per, kwds={"s":size, "c":i})
+            pool.apply_async(complete_per, kwds={"s":size, "c":i})
     pool.join()
     results = []
     for thread in gevent_threads:
         if thread.successful():
             results.append(thread.value)
+        else:
+            errorcount += 1
+            print("run gevent error in ", thread)
     if postfun is not None:
         pool.apply(postfun)
+    if errorcount > 0:
+        print("error count:", errorcount)
+    return results
+
+@app.task
+def run_single(fun:object, fun_kwargs:list, prefun:object=None, postfun:object=None):
+    size = len(fun_kwargs)
+    price = set_part(size)
+    if prefun is not None:
+        prefun()
+    results = []
+    for i, kwargs in enumerate(fun_kwargs):
+        res = fun(**kwargs)
+        if i % price == 0:
+            complete_per(size, i)
+        results.append(res)
+    if postfun is not None:
+        postfun()
     return results

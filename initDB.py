@@ -2,7 +2,7 @@
 from dbUtil import DBUtil
 from sava_data import save_as_csv, get_stock_insert_sql
 from stock import Stock
-from stock_task import run_task_gevent, run_task_process
+from stock_task import run_task_gevent, run_task_process, run_single
 
 import datetime
 
@@ -60,11 +60,11 @@ def init_stock_data():
         # insert_sql = get_stock_insert_sql(key)
         fun = st.get_fun(key)
         kwargs = []
-        if key in Stock.get_divided_list():
+        if key in Stock.get_divided_list(): # done
             for code in codes:
                 for year in range(2010,int(now_date[0:4])):
                     kwargs.append({"code":code,"year":str(year),"yearType":"report"})
-        elif key in Stock.get_history_list():
+        elif key in Stock.get_history_list(): # done
             for code in codes:
                 kwargs.append({
                     "code":code,
@@ -73,13 +73,13 @@ def init_stock_data():
                     "end_date":now_date,
                     "adjust_flag":"3"
                 })
-        elif key in Stock.get_sector_list():
+        elif key in Stock.get_sector_list(): # done
             if key == "stock_industry":
                 for code in codes:
                     kwargs.append({"code":code})
             else:
                 kwargs.append({})
-        elif key in Stock.get_metadata_list():
+        elif key in Stock.get_metadata_list(): # done
             if key == "all_stock":
                 kwargs.append({"date":now_date})
             elif key == "trade_dates":
@@ -92,19 +92,21 @@ def init_stock_data():
                     kwargs.append({"code":code, "start_date":"2005-01-01", "end_date":now_date})
         elif key in Stock.get_evaluation_list():
             for code in codes:
-                for year in range(2000,2001):#int(now_date[0:4])):
-                    for quarter in [1, 2, 3, 4]:
-                        kwargs.append({"code":code, "year":year, "quarter":quarter})
-        elif key in Stock.get_corporate_list():
+                year = 2019
+                # for year in range(2015,2020): # int(now_date[0:4])):
+                for quarter in [1, 2, 3, 4]:
+                    kwargs.append({"code":code, "year":year, "quarter":quarter})
+        elif key in Stock.get_corporate_list(): # sdone
             for code in codes:
                 kwargs.append({"code":code, "end_date":None, "start_date":"2003-01-01"})
-        elif key in Stock.get_macroscopic_list():
+        elif key in Stock.get_macroscopic_list(): # done
             if key == "normal_required_reserve_ratio_data":
                 kwargs.append({"start_date":"2005-01-01", "end_date":now_date, "yearType":0})
             else:
                 kwargs.append({"start_date":"2005-01-01", "end_date":now_date})
         print("task size:",len(kwargs))
-        results = run_task_process(fun=fun, fun_kwargs=kwargs, processes=5, prefun=Stock.login)
+        results = run_single(fun=fun, fun_kwargs=kwargs, prefun=Stock.login)
+        # results = run_task_process(fun=fun, fun_kwargs=kwargs, processes=2, prefun=Stock.login)
         print(key," start insert", (datetime.datetime.now() - start).seconds)
         start = datetime.datetime.now()
         DBUtil.save_as_db(get_stock_insert_sql(key), results)

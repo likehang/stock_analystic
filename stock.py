@@ -40,8 +40,9 @@ class Stock():
     @staticmethod
     def get_evaluation_list():
         return [
-            "quarter_profit_data","quarter_growth_data"
-            ,"quarter_balance_data","quarter_dupont_data"
+            # "quarter_profit_data",
+            # "quarter_growth_data",
+            "quarter_balance_data","quarter_dupont_data"
             ,"quarter_cash_flow_data","quarter_operation_data"
         ]
 
@@ -93,7 +94,7 @@ class Stock():
 
     def getStockInstance(self):
         nowtimestamp = datetime.datetime.today()
-        if self._login is not None and self._login.error_code == '0' :
+        if self._login is not None:
             timedelta = nowtimestamp - self._lasttime
             timedelta = timedelta.total_seconds()/ 60.0
             self._lasttime = nowtimestamp
@@ -104,7 +105,7 @@ class Stock():
         while( not flag):
             num += 1
             self._login = self.getStockInstance()
-            if self._login.error_code == '0':
+            if self._login is not None:
                 self._lasttime = datetime.datetime.today()
                 return True
             time.sleep(config.SLEEP_TIME)
@@ -291,7 +292,7 @@ class Stock():
     """
     def normal_money_supply_data_month(self, start_date, end_date):
         self.getStockInstance()
-        rs = bs.query_money_supply_data_month(start_date[0,7], end_date[0,7])
+        rs = bs.query_money_supply_data_month(start_date[0:7], end_date[0:7])
         self._test_rs(rs)
         return rs
     """
@@ -299,7 +300,7 @@ class Stock():
     """
     def normal_money_supply_data_year(self, start_date, end_date):
         self.getStockInstance()
-        rs = bs.query_money_supply_data_year(start_date[0,4], end_date[0,4])
+        rs = bs.query_money_supply_data_year(start_date[0:4], end_date[0:4])
         self._test_rs(rs)
         return rs
     """
